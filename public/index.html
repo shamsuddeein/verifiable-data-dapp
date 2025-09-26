@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifiable Data Solutions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #1a202c;
+            --bg-light: #2d3748;
+            --text-primary: #edf2f7;
+            --text-secondary: #a0aec0;
+            --accent-green: #48bb78;
+            --accent-blue: #4299e1;
+            --gradient-start: #3B82F6;
+            --gradient-end: #6366F1;
+            --error-red: #e53e3e;
+            --warning-yellow: #f6e05e;
+        }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--bg-dark); color: var(--text-primary); line-height: 1.6; }
+        .container { max-width: 1100px; margin: auto; padding: 0 20px; }
+        header { background: var(--bg-dark); padding: 1rem 0; border-bottom: 1px solid var(--bg-light); position: sticky; top: 0; z-index: 100; }
+        nav { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: 700; }
+        .logo span { color: var(--accent-green); }
+        .btn { display: inline-block; background: var(--accent-green); color: #fff; padding: 0.7rem 1.5rem; border-radius: 5px; text-decoration: none; font-weight: 600; transition: all 0.3s; border: none; cursor: pointer; }
+        .btn:hover { background: #38a169; transform: translateY(-2px); }
+        .btn-blue { background: var(--accent-blue); }
+        .btn-blue:hover { background: #3182ce; }
+        .btn-red { background: var(--error-red); }
+        .btn-red:hover { background: #c53030; }
+        .wallet-container { display: flex; align-items: center; gap: 1rem; }
+        #wallet-info { color: var(--text-secondary); font-size: 0.9rem; text-align: right; }
+        .hero { padding: 4rem 0; text-align: center; }
+        .hero h1 { font-size: 3.5rem; margin-bottom: 1rem; }
+        .hero p { font-size: 1.3rem; max-width: 700px; margin: 0 auto 1.5rem; }
+        .app-container { background-color: var(--bg-light); border-radius: 12px; padding: 2rem; max-width: 700px; margin: 2rem auto; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .tabs { display: flex; border-bottom: 1px solid var(--text-secondary); margin-bottom: 2rem; }
+        .tab { padding: 1rem 1.5rem; cursor: pointer; font-size: 1.2rem; font-weight: 600; color: var(--text-secondary); transition: all 0.3s; }
+        .tab.active { color: var(--accent-green); border-bottom: 3px solid var(--accent-green); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .upload-box { margin: 0 auto; padding: 3rem; border-radius: 12px; border: 2px dashed var(--text-secondary); cursor: pointer; transition: all 0.3s; }
+        .upload-box.disabled { cursor: not-allowed; background: #222b3b; }
+        .upload-box:hover:not(.disabled) { border-color: var(--accent-green); background: #3c4a60; }
+        .upload-box p { font-size: 1.2rem; }
+        #file-input-notarize, #file-input-verify { display: none; }
+        .result-message { margin-top: 2rem; padding: 1rem; border-radius: 8px; margin-left: auto; margin-right: auto; display: none; word-wrap: break-word; text-align: center; }
+        .result-message.success { background-color: var(--accent-green); color: #fff; }
+        .result-message.error { background-color: var(--error-red); color: #fff; }
+        .result-message.info { background-color: var(--accent-blue); color: #fff; }
+        .result-message a { color: #fff; text-decoration: underline; }
+        .config-warning { text-align: center; padding: 1rem; background: #c05621; color: white; font-weight: 600; border-radius: 8px; margin-bottom: 2rem; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-green); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 2rem auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        footer { text-align: center; padding: 3rem 0; margin-top: 4rem; border-top: 1px solid var(--bg-light); color: var(--text-secondary); }
+        .footer-links a { color: var(--accent-blue); text-decoration: none; margin: 0 1rem; font-weight: 600; }
+        .footer-links a:hover { text-decoration: underline; }
+        .network-info { text-align: center; padding: 0.5rem; background: #2d3748; border-radius: 5px; margin: 1rem 0; font-size: 0.9rem; }
+    </style>
+    <!-- Ethers.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.8.0/ethers.umd.min.js"></script>
+</head>
+<body>
+    <header>
+        <nav class="container">
+            <div class="logo">Verifiable<span>Data</span></div>
+            <div class="wallet-container">
+                <div id="wallet-info">
+                    <span>Wallet not connected</span>
+                </div>
+                <button id="connect-wallet-btn" class="btn btn-blue">Connect</button>
+            </div>
+        </nav>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <h1>The Standard for Digital Trust</h1>
+            <p>Notarize and verify your digital assets with immutable proof, secured on the Monad Blockchain.</p>
+            <div class="network-info">
+                Network: <strong id="current-network">Not connected</strong>
+            </div>
+        </div>
+    </section>
+
+    <main class="app-container">
+        <div id="config-warning" class="config-warning" style="display: none;">
+            <strong>Configuration Needed:</strong> Please edit the HTML file and paste your deployed contract address into the `NOTARY_CONTRACT_ADDRESS` variable to enable the app.
+        </div>
+        
+        <div id="network-warning" class="config-warning" style="display: none; background: #e53e3e;">
+            <strong>Wrong Network:</strong> Please switch to Monad Testnet to use this application.
+          </div>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="notarize">Notarize</div>
+            <div class="tab" data-tab="verify">Verify</div>
+        </div>
+
+        <!-- Notarize Tab Content -->
+        <div id="notarize-content" class="tab-content active">
+            <h2 style="text-align:center; margin-bottom: 1.5rem;">Create a Digital Proof</h2>
+            <div id="upload-box-notarize" class="upload-box disabled">
+                <p id="upload-text-notarize">Connect your wallet to begin</p>
+            </div>
+            <input type="file" id="file-input-notarize" disabled>
+            <div id="loader-notarize" class="loader"></div>
+            <div id="result-message-notarize" class="result-message"></div>
+        </div>
+
+        <!-- Verify Tab Content -->
+        <div id="verify-content" class="tab-content">
+            <h2 style="text-align:center; margin-bottom: 1.5rem;">Verify a Digital Proof</h2>
+            <div id="upload-box-verify" class="upload-box disabled">
+                <p id="upload-text-verify">Connect your wallet to begin</p>
+            </div>
+            <input type="file" id="file-input-verify" disabled>
+            <div id="loader-verify" class="loader"></div>
+            <div id="result-message-verify" class="result-message"></div>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p class="footer-links">
+                <a href="#" target="_blank">About</a>
+                <a href="https://t.me/Verifiabledata" target="_blank">Telegram</a>
+                <a href="https://x.com/shamsuddeein" target="_blank">Twitter</a>
+            </p>
+            <p style="margin-top: 1rem;">&copy; 2025 Verifiable Data Solutions. All Rights Reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // --- CORRECT MONAD TESTNET CONFIGURATION ---
+        const TARGET_NETWORK = {
+    chainId: '0x279F', // Monad Testnet Chain ID (10143 in decimal)
+    chainName: 'Monad Testnet',
+    rpcUrls: ['https://testnet-rpc.monad.xyz'],
+    nativeCurrency: { name: 'MON', decimals: 18, symbol: 'MON' },
+    blockExplorerUrls: ['https://testnet.monadexplorer.com']
+};
+
+        // Use your actual deployed contract address on Monad Testnet
+        const NOTARY_CONTRACT_ADDRESS = '0x0871db5C5F0722ca1CF85883eE637f33c9E81687';
+        
+        const NOTARY_CONTRACT_ABI = [ 
+            { 
+                "anonymous": false, 
+                "inputs": [ 
+                    { "indexed": true, "internalType": "bytes32", "name": "documentHash", "type": "bytes32" }, 
+                    { "indexed": false, "internalType": "uint256", "name": "timestamp", "type": "uint256" } 
+                ], 
+                "name": "ProofCreated", 
+                "type": "event" 
+            }, 
+            { 
+                "inputs": [{ "internalType": "bytes32", "name": "_hash", "type": "bytes32" }], 
+                "name": "getProofTimestamp", 
+                "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], 
+                "stateMutability": "view", 
+                "type": "function" 
+            }, 
+            { 
+                "inputs": [{ "internalType": "bytes32", "name": "_hash", "type": "bytes32" }], 
+                "name": "storeHash", 
+                "outputs": [], 
+                "stateMutability": "nonpayable", 
+                "type": "function" 
+            } 
+        ];
+
+        // --- DOM ELEMENTS ---
+        const connectWalletBtn = document.getElementById('connect-wallet-btn');
+        const walletInfo = document.getElementById('wallet-info');
+        const configWarning = document.getElementById('config-warning');
+        const networkWarning = document.getElementById('network-warning');
+        const currentNetwork = document.getElementById('current-network');
+        
+        // Notarize elements
+        const uploadBoxNotarize = document.getElementById('upload-box-notarize');
+        const uploadTextNotarize = document.getElementById('upload-text-notarize');
+        const fileInputNotarize = document.getElementById('file-input-notarize');
+        const loaderNotarize = document.getElementById('loader-notarize');
+        const resultMessageNotarize = document.getElementById('result-message-notarize');
+        
+        // Verify elements
+        const uploadBoxVerify = document.getElementById('upload-box-verify');
+        const uploadTextVerify = document.getElementById('upload-text-verify');
+        const fileInputVerify = document.getElementById('file-input-verify');
+        const loaderVerify = document.getElementById('loader-verify');
+        const resultMessageVerify = document.getElementById('result-message-verify');
+        
+        // Tabs
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        let provider, signer, contract;
+        
+        // --- FUNCTIONS ---
+
+        function checkConfiguration() {
+            if (!ethers.isAddress(NOTARY_CONTRACT_ADDRESS)) {
+                configWarning.style.display = 'block';
+                return false;
+            }
+            configWarning.style.display = 'none';
+            return true;
+        }
+
+        async function connectWallet() {
+            if (typeof window.ethereum === 'undefined') { 
+                return alert('Please install MetaMask!'); 
+            }
+            try {
+                // First request accounts access
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                // Then create provider
+                provider = new ethers.BrowserProvider(window.ethereum);
+                signer = await provider.getSigner();
+                
+                setupEventListeners();
+                await handleConnection();
+            } catch (error) {
+                console.error("Failed to connect wallet:", error);
+                alert("Failed to connect wallet. Please try again.");
+            }
+        }
+        
+        function disconnectWallet() {
+            provider = null;
+            signer = null;
+            contract = null;
+            updateUI(false);
+        }
+
+        async function handleConnection() {
+            if (!signer) return;
+            await checkNetwork();
+            updateUI(true);
+        }
+
+        async function checkNetwork() {
+            if (!provider) return;
+            
+            try {
+                const network = await provider.getNetwork();
+                currentNetwork.textContent = `${network.name} (Chain ID: ${network.chainId})`;
+                
+                // Compare chain IDs correctly using BigInt
+                if (network.chainId !== BigInt(TARGET_NETWORK.chainId)) {
+                    networkWarning.style.display = 'block';
+                    await switchToMonadNetwork();
+                } else {
+                    networkWarning.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Error checking network:", error);
+                currentNetwork.textContent = 'Error checking network';
+            }
+        }
+
+        async function switchToMonadNetwork() {
+            try {
+                // Try to switch to Monad Testnet
+                await window.ethereum.request({ 
+                    method: 'wallet_switchEthereumChain', 
+                    params: [{ chainId: TARGET_NETWORK.chainId }] 
+                });
+            } catch (switchError) {
+                // This error code indicates that the chain has not been added to MetaMask
+                if (switchError.code === 4902) {
+                    try {
+                        await window.ethereum.request({ 
+                            method: 'wallet_addEthereumChain', 
+                            params: [TARGET_NETWORK] 
+                        });
+                    } catch (addError) {
+                        console.error("Failed to add network:", addError);
+                        // Show manual setup instructions
+                        showManualNetworkSetup();
+                    }
+                } else {
+                    console.error("Failed to switch network:", switchError);
+                }
+            }
+        }
+
+        function showManualNetworkSetup() {
+            alert(`Please add Monad Testnet manually to your wallet. Here are the details:\n\n` +
+                  `Network Name: Monad Testnet\n` +
+                  `RPC URL: https://testnet-rpc.monad.xyz\n` +
+                  `Chain ID: 134140\n` +
+                  `Currency Symbol: MON\n` +
+                  `Block Explorer: https://testnet.monadexplorer.com`);
+        }
+        
+        async function isCorrectNetwork() {
+            if (!signer) return false;
+            try {
+                const network = await provider.getNetwork();
+                return network.chainId === BigInt(TARGET_NETWORK.chainId);
+            } catch (error) {
+                console.error("Error checking network:", error);
+                return false;
+            }
+        }
+
+        async function updateUI(isConnected) {
+            if (isConnected && signer) {
+                try {
+                    const address = await signer.getAddress();
+                    const network = await provider.getNetwork();
+                    
+                    walletInfo.innerHTML = `<span>${address.substring(0, 6)}...${address.substring(address.length - 4)}</span><br><small>${network.name}</small>`;
+                    connectWalletBtn.textContent = 'Disconnect';
+                    connectWalletBtn.className = 'btn btn-red';
+
+                    if (!checkConfiguration()) return;
+                    
+                    // Only enable app if on correct network
+                    const correctNetwork = await isCorrectNetwork();
+                    if (correctNetwork) {
+                        [uploadBoxNotarize, uploadBoxVerify].forEach(box => box.classList.remove('disabled'));
+                        [fileInputNotarize, fileInputVerify].forEach(input => input.disabled = false);
+                        uploadTextNotarize.innerHTML = 'Drag & Drop your file here, or <strong>click to select a file</strong>.';
+                        uploadTextVerify.innerHTML = 'Drag & Drop your file here, or <strong>click to select a file</strong>.';
+                        
+                        // Initialize contract
+                        contract = new ethers.Contract(NOTARY_CONTRACT_ADDRESS, NOTARY_CONTRACT_ABI, signer);
+                    } else {
+                        [uploadBoxNotarize, uploadBoxVerify].forEach(box => box.classList.add('disabled'));
+                        [fileInputNotarize, fileInputVerify].forEach(input => input.disabled = true);
+                        uploadTextNotarize.textContent = 'Please switch to Monad Testnet';
+                        uploadTextVerify.textContent = 'Please switch to Monad Testnet';
+                    }
+                } catch (error) {
+                    console.error("Error updating UI:", error);
+                }
+            } else {
+                walletInfo.innerHTML = `<span>Wallet not connected</span>`;
+                connectWalletBtn.textContent = 'Connect';
+                connectWalletBtn.className = 'btn btn-blue';
+                currentNetwork.textContent = 'Not connected';
+
+                // Disable App
+                [uploadBoxNotarize, uploadBoxVerify].forEach(box => box.classList.add('disabled'));
+                [fileInputNotarize, fileInputVerify].forEach(input => input.disabled = true);
+                uploadTextNotarize.textContent = 'Connect your wallet to begin';
+                uploadTextVerify.textContent = 'Connect your wallet to begin';
+                
+                networkWarning.style.display = 'none';
+            }
+        }
+        
+        async function calculateHash(file) {
+            const buffer = await file.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function handleNotarizeUpload(file) {
+            if (!await isCorrectNetwork()) {
+                return alert(`Please switch your wallet to Monad Testnet to continue.`);
+            }
+            
+            loaderNotarize.style.display = 'block';
+            resultMessageNotarize.style.display = 'none';
+            
+            try {
+                const hashHex = await calculateHash(file);
+
+                // Check if document is already notarized
+                const existingTimestamp = await contract.getProofTimestamp(hashHex);
+                if (Number(existingTimestamp) > 0) {
+                    throw new Error(`This document was already notarized on ${new Date(Number(existingTimestamp) * 1000).toLocaleString()}`);
+                }
+
+                // Notarize the document
+                const tx = await contract.storeHash(hashHex);
+                displayResult('success', `Transaction sent... waiting for confirmation.<br>TX Hash: <a href="${TARGET_NETWORK.blockExplorerUrls[0]}/tx/${tx.hash}" target="_blank">${tx.hash}</a>`, 'notarize');
+                
+                // Wait for confirmation
+                await tx.wait();
+
+                displayResult('success', `✅ Success! Your file has been notarized.<br>Transaction Hash: <a href="${TARGET_NETWORK.blockExplorerUrls[0]}/tx/${tx.hash}" target="_blank">${tx.hash}</a>`, 'notarize');
+
+            } catch (error) {
+                console.error("Notarization failed:", error);
+                if (error.code === 'BAD_DATA' || error.code === 'INVALID_ARGUMENT') {
+                    displayResult('error', `Error: Contract not found. Please ensure:<br>1. You're on Monad Testnet<br>2. Contract address is correct<br>3. Contract is deployed`, 'notarize');
+                } else if (error.message.includes('user rejected')) {
+                    displayResult('error', 'Transaction was rejected by user.', 'notarize');
+                } else {
+                    displayResult('error', `Error: ${error.message || 'Transaction failed.'}`, 'notarize');
+                }
+            } finally {
+                loaderNotarize.style.display = 'none';
+                fileInputNotarize.value = '';
+            }
+        }
+        
+        async function handleVerifyUpload(file) {
+            if (!await isCorrectNetwork()) {
+                return alert(`Please switch your wallet to Monad Testnet to continue.`);
+            }
+            
+            loaderVerify.style.display = 'block';
+            resultMessageVerify.style.display = 'none';
+            
+            try {
+                const hashHex = await calculateHash(file);
+                
+                const timestamp = await contract.getProofTimestamp(hashHex);
+                if (Number(timestamp) > 0) {
+                    const verificationDate = new Date(Number(timestamp) * 1000).toLocaleString();
+                    displayResult('success', `✅ Verified!<br>This document was notarized on: <strong>${verificationDate}</strong>`, 'verify');
+                } else {
+                    displayResult('info', `❌ Not Found.<br>This document has no proof on the blockchain.`, 'verify');
+                }
+            } catch (error) {
+                console.error("Verification failed:", error);
+                if (error.code === 'BAD_DATA' || error.code === 'INVALID_ARGUMENT') {
+                    displayResult('error', `Error: Could not verify. Please ensure you're on Monad Testnet and the contract address is correct.`, 'verify');
+                } else {
+                    displayResult('error', `Error: ${error.message || 'Could not check verification status.'}`, 'verify');
+                }
+            } finally {
+                loaderVerify.style.display = 'none';
+                fileInputVerify.value = '';
+            }
+        }
+        
+        function displayResult(type, message, context) {
+            const resultBox = context === 'notarize' ? resultMessageNotarize : resultMessageVerify;
+            resultBox.style.display = 'block';
+            resultBox.className = `result-message ${type}`;
+            resultBox.innerHTML = message;
+        }
+        
+        function setupEventListeners() {
+            if (window.ethereum) {
+                window.ethereum.on('accountsChanged', async (accounts) => {
+                    console.log('Account changed');
+                    if (accounts.length > 0) {
+                        provider = new ethers.BrowserProvider(window.ethereum);
+                        signer = await provider.getSigner();
+                        updateUI(true);
+                    } else {
+                        disconnectWallet();
+                    }
+                });
+                
+                window.ethereum.on('chainChanged', async (chainId) => {
+                    console.log('Network changed to:', chainId);
+                    window.location.reload();
+                });
+            }
+        }
+
+        // --- INITIALIZATION ---
+        connectWalletBtn.addEventListener('click', () => {
+            signer ? disconnectWallet() : connectWallet();
+        });
+        
+        // Tabs
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabs.forEach(item => item.classList.remove('active'));
+                tab.classList.add('active');
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
+            });
+        });
+
+        // File inputs and drag/drop
+        setupFileUploadListeners();
+
+        function setupFileUploadListeners() {
+            // Notarize tab
+            uploadBoxNotarize.addEventListener('click', () => { 
+                if (!fileInputNotarize.disabled) fileInputNotarize.click(); 
+            });
+            
+            fileInputNotarize.addEventListener('change', (e) => { 
+                if (e.target.files[0]) handleNotarizeUpload(e.target.files[0]); 
+            });
+            
+            setupDragAndDrop(uploadBoxNotarize, fileInputNotarize, handleNotarizeUpload);
+
+            // Verify tab
+            uploadBoxVerify.addEventListener('click', () => { 
+                if (!fileInputVerify.disabled) fileInputVerify.click(); 
+            });
+            
+            fileInputVerify.addEventListener('change', (e) => { 
+                if (e.target.files[0]) handleVerifyUpload(e.target.files[0]); 
+            });
+            
+            setupDragAndDrop(uploadBoxVerify, fileInputVerify, handleVerifyUpload);
+        }
+
+        function setupDragAndDrop(uploadBox, fileInput, handler) {
+            uploadBox.addEventListener('dragover', (e) => { 
+                if (!fileInput.disabled) { 
+                    e.preventDefault(); 
+                    uploadBox.style.borderColor = 'var(--accent-green)'; 
+                } 
+            });
+            
+            uploadBox.addEventListener('dragleave', (e) => { 
+                if (!fileInput.disabled) uploadBox.style.borderColor = 'var(--text-secondary)'; 
+            });
+            
+            uploadBox.addEventListener('drop', (e) => { 
+                if (!fileInput.disabled) { 
+                    e.preventDefault(); 
+                    uploadBox.style.borderColor = 'var(--text-secondary)'; 
+                    if (e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]); 
+                } 
+            });
+        }
+
+        // Initial check on page load
+        checkConfiguration();
+
+        // Check for existing wallet connection on page load
+        if (typeof window.ethereum !== 'undefined') {
+            window.ethereum.request({ method: 'eth_accounts' })
+                .then(accounts => {
+                    if (accounts.length > 0) {
+                        connectWallet();
+                    }
+                })
+                .catch(console.error);
+        }
+
+    </script>
+</body>
+</html>
